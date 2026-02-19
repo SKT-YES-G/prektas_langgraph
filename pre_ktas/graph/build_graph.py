@@ -35,12 +35,15 @@ from nodes.classify.stage4 import make_stage4_classifier_node
 from nodes.ask.question import ask_question_node
 
 
-def build_graph(llm):
+def build_graph(llm, checkpointer=None):
     """
     LLM 인스턴스를 받아 Pre-KTAS 재평가 그래프를 컴파일하여 반환한다.
 
     Args:
         llm: langchain BaseChatModel (예: ChatOpenAI, ChatAnthropic 등)
+        checkpointer: LangGraph checkpointer (예: MemorySaver).
+                      None 이면 체크포인트 없이 컴파일된다.
+                      FastAPI 처럼 호출 간 상태를 유지할 때 MemorySaver를 전달한다.
 
     Returns:
         CompiledGraph: invoke / stream 가능한 LangGraph 그래프
@@ -120,7 +123,7 @@ def build_graph(llm):
     # ── 추가 질문 후 → END (다음 스트림 사이클 대기) ─────────────────────
     graph.add_edge("ask_question", END)
 
-    return graph.compile()
+    return graph.compile(checkpointer=checkpointer)
 
 
 def get_initial_state() -> dict:
