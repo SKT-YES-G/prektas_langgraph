@@ -18,6 +18,9 @@ import asyncio
 from contextlib import asynccontextmanager
 from typing import Literal, Optional
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from langchain_openai import ChatOpenAI

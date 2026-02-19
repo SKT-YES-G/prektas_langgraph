@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from pre_ktas.graph.state import GraphState
-from nodes.data.ktas_candidates import get_stage4_candidates
+from pre_ktas.nodes.data.ktas_candidates import get_stage4_candidates
 
 
 # ── Structured Output Schema ──────────────────────────────────────────────────
