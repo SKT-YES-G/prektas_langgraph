@@ -46,6 +46,7 @@ _DUMMY_STATE_EXAMPLE = {
     "stage2_selection": "심혈관계",
     "stage3_selection": "가슴통증(심장성)",
     "stage4_selection": "NSTEMI/불안정 협심증 의심",
+    "final_ktas_level": 2,
     "retriage_target": "stage2",
     "retriage_action": "재분류",
     "additional_questions": [],
@@ -124,6 +125,7 @@ class TriageStateOut(BaseModel):
     stage2_selection: Optional[str] = Field(None, description="Stage 2 분류 결과 (주증상 계통)")
     stage3_selection: Optional[str] = Field(None, description="Stage 3 분류 결과 (세부 증상)")
     stage4_selection: Optional[str] = Field(None, description="Stage 4 분류 결과 (구체 임상 상태)")
+    final_ktas_level: Optional[int] = Field(None, description="KTAS 등급 (1~5). Stage 2·3·4 조합으로 CSV에서 매핑. 미매핑 시 null.")
     retriage_target: Optional[str] = Field(None, description="마지막 재평가 시작 단계")
     retriage_action: Optional[str] = Field(None, description="마지막 재평가 결정 ('추가 질문' | '재분류')")
     additional_questions: list[str] = Field(default_factory=list, description="현재 미답 추가 질문 목록")
@@ -216,6 +218,7 @@ def _extract_state_out(session_id: str, raw: dict) -> TriageStateOut:
         stage2_selection=raw.get("stage2_selection"),
         stage3_selection=raw.get("stage3_selection"),
         stage4_selection=raw.get("stage4_selection"),
+        final_ktas_level=raw.get("final_ktas_level"),
         retriage_target=raw.get("retriage_target"),
         retriage_action=raw.get("retriage_action"),
         additional_questions=raw.get("additional_questions") or [],
@@ -247,6 +250,9 @@ def _summarize_message(state: dict) -> str:
         n = len(state.get("additional_questions") or [])
         return f"추가 질문 {n}개 생성됨"
     if s4:
+        ktas = state.get("final_ktas_level")
+        if ktas is not None:
+            return f"stage4 분류 완료 → {s4} (KTAS {ktas}급)"
         return f"stage4 분류 완료 → {s4}"
     if s3:
         return f"stage3 분류 완료 → {s3}"

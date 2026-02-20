@@ -4098,3 +4098,39 @@ def get_stage3_candidates(stage2_selection: str) -> list[str]:
 def get_stage4_candidates(stage3_selection: str) -> list[str]:
     """stage3 선택값으로 stage4 후보군 반환."""
     return STAGE4_BY_STAGE3.get(stage3_selection, [])
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# KTAS 등급 매핑 (CSV 기반)
+# ──────────────────────────────────────────────────────────────────────────────
+
+import csv
+import os
+from typing import Optional
+
+_CSV_PATH = os.path.join(os.path.dirname(__file__), "pre-ktas.csv")
+
+# (stage2_설명, stage3_설명, stage4_설명) → KTAS 등급 (int 1-5)
+# 동일 조합에 복수 등급이 있으면 가장 중증(낮은 숫자)을 채택
+KTAS_LEVEL_MAP: dict[tuple[str, str, str], int] = {}
+
+def _build_ktas_level_map() -> dict[tuple[str, str, str], int]:
+    result: dict[tuple[str, str, str], int] = {}
+    with open(_CSV_PATH, encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            key = (row["2단계_설명"], row["3단계_설명"], row["4단계_설명"])
+            level = int(row["등급"])
+            if key not in result or level < result[key]:
+                result[key] = level
+    return result
+
+KTAS_LEVEL_MAP = _build_ktas_level_map()
+
+
+def get_ktas_level(stage2: str, stage3: str, stage4: str) -> Optional[int]:
+    """(stage2, stage3, stage4) 조합에 해당하는 KTAS 등급(1-5)을 반환한다.
+
+    매핑이 없으면 None 을 반환한다.
+    """
+    return KTAS_LEVEL_MAP.get((stage2, stage3, stage4))

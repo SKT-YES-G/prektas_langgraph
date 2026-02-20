@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from pre_ktas.graph.state import GraphState
+from pre_ktas.nodes.data.ktas_candidates import get_ktas_level
 
 
 # ── Structured Output Schema ──────────────────────────────────────────────────
@@ -106,10 +107,14 @@ def make_stage4_classifier_node(llm):
         }
         existing_log = state.get("classification_log") or []
 
+        # CSV 기반 KTAS 등급 매핑 (stage2 + stage3 + stage4 → 1~5)
+        ktas_level = get_ktas_level(stage2, stage3, selection)
+
         return {
             "stage4_selection": selection,
             "current_stage": 4,
             "classification_log": existing_log + [log_entry],
+            "final_ktas_level": ktas_level,
         }
 
     return stage4_classifier_node
