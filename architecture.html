@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pre-KTAS Architecture</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Noto+Sans+KR:wght@300;400;700&display=swap');
+
+  :root {
+    --bg: #0a0e1a;
+    --border: #1e2d4a;
+    --accent1: #00d4ff;
+    --accent2: #ff6b35;
+    --accent4: #10b981;
+    --text: #c8d8f0;
+    --muted: #4a6080;
+    --node-bg: #111a2e;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    min-height: 100vh;
+    padding: 40px 20px 60px;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 20%, rgba(0,212,255,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 40% at 80% 80%, rgba(124,58,237,0.05) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+  header .tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--accent1);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    opacity: 0.8;
+  }
+  header h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+  }
+  header h1 span { color: var(--accent1); }
+  header p {
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .flow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  /* Generic node */
+  .node {
+    background: var(--node-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 15px 20px;
+    animation: fadeUp 0.5s both;
+  }
+  .node .nl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    opacity: 0.55;
+    margin-bottom: 3px;
+  }
+  .node .nt {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .node .nd {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+    line-height: 1.5;
+  }
+
+  .node-full { width: 100%; max-width: 520px; }
+
+  .n-input  { border-color:rgba(0,212,255,0.45);  box-shadow:0 0 22px rgba(0,212,255,0.06); }
+  .n-input  .nl, .n-input  .nt { color: var(--accent1); }
+  .n-judge  { border-color:rgba(255,107,53,0.45); box-shadow:0 0 22px rgba(255,107,53,0.06); }
+  .n-judge  .nl, .n-judge  .nt { color: var(--accent2); }
+  .n-ret    { border-color:rgba(124,58,237,0.45); box-shadow:0 0 22px rgba(124,58,237,0.06); }
+  .n-ret    .nl, .n-ret    .nt { color: #a78bfa; }
+  .n-ask    { border-color:rgba(251,191,36,0.45); box-shadow:0 0 22px rgba(251,191,36,0.06); }
+  .n-ask    .nl, .n-ask    .nt { color: #fbbf24; }
+  .n-out    { border-color:rgba(0,212,255,0.3); background:rgba(0,212,255,0.04); }
+  .n-out    .nl, .n-out    .nt { color: var(--accent1); }
+
+  /* Retriage branch row */
+  .branch-row {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    width: 100%;
+    max-width: 660px;
+  }
+  .branch-node {
+    flex: 1;
+    max-width: 200px;
+    background: var(--node-bg);
+    border: 1px solid rgba(124,58,237,0.38);
+    border-radius: 10px;
+    padding: 12px 14px;
+    text-align: center;
+    animation: fadeUp 0.5s both;
+    box-shadow: 0 0 18px rgba(124,58,237,0.05);
+  }
+  .branch-node .bn-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 3px;
+  }
+  .branch-node .bn-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: #a78bfa;
+  }
+  .branch-node .bn-desc {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 3px;
+    line-height: 1.4;
+  }
+
+  /* Decision box */
+  .decision-box {
+    background: var(--node-bg);
+    border: 1px solid rgba(251,191,36,0.45);
+    border-radius: 8px;
+    padding: 10px 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fbbf24;
+    box-shadow: 0 0 18px rgba(251,191,36,0.06);
+  }
+
+  /* Arrow helpers */
+  .arr {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .arr-line { width: 2px; }
+  .c1 { background: rgba(0,212,255,0.35); }
+  .c2 { background: rgba(255,107,53,0.35); }
+  .c3 { background: rgba(124,58,237,0.35); }
+  .c4 { background: rgba(16,185,129,0.35); }
+  .cy { background: rgba(251,191,36,0.35); }
+
+  .arr-head {
+    width: 0; height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+  }
+  .ah-c1 { border-top: 7px solid rgba(0,212,255,0.5); }
+  .ah-c2 { border-top: 7px solid rgba(255,107,53,0.5); }
+  .ah-c3 { border-top: 7px solid rgba(124,58,237,0.5); }
+  .ah-c4 { border-top: 7px solid rgba(16,185,129,0.5); }
+  .ah-cy { border-top: 7px solid rgba(251,191,36,0.5); }
+
+  /* Cascade node */
+  .cascade-node {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--node-bg);
+    border-radius: 10px;
+    padding: 13px 18px;
+    animation: fadeUp 0.5s both;
+  }
+  .cn-s2 { border: 1px solid rgba(0,212,255,0.35); }
+  .cn-s3 { border: 1px solid rgba(16,185,129,0.35); }
+  .cn-s4 { border: 1px solid rgba(124,58,237,0.35); }
+
+  .cascade-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+    font-weight: 700;
+    min-width: 30px;
+    text-align: center;
+  }
+  .cnum-s2 { color: var(--accent1); }
+  .cnum-s3 { color: var(--accent4); }
+  .cnum-s4 { color: #a78bfa; }
+
+  .ci-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .ct-s2 { color: var(--accent1); }
+  .ct-s3 { color: var(--accent4); }
+  .ct-s4 { color: #a78bfa; }
+  .ci-example {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .slabel {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    opacity: 0.6;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+
+  .legend {
+    margin-top: 52px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    justify-content: center;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="tag">System Architecture</div>
+    <h1>Pre-<span>KTAS</span> LangGraph</h1>
+    <p>응급실 중증도 자동 분류 · Multi-stage AI Pipeline</p>
+  </header>
+
+  <div class="flow">
+
+    <!-- ① INPUT -->
+    <div class="node node-full n-input" style="animation-delay:0.05s">
+      <div class="nl">Entry Point</div>
+      <div class="nt">텍스트 입력</div>
+      <div class="nd">STT(음성) 또는 키보드 입력 — <code style="font-family:'JetBrains Mono';font-size:11px;color:#7dd3fc">POST /triage/input</code> · session_id 기반 세션 유지</div>
+    </div>
+
+    <div class="arr"><div class="arr-line c1" style="height:22px"></div><div class="arr-head ah-c1"></div></div>
+
+    <!-- ② RETRIAGE JUDGE -->
+    <div class="node node-full n-judge" style="animation-delay:0.1s">
+      <div class="nl">Router Node</div>
+      <div class="nt">retriage_judge</div>
+      <div class="nd">새 입력을 기존 분류 상태와 비교 → <strong style="color:#ffd580">어느 Stage부터 재평가할지</strong> 결정 (S2 / S3 / S4 / SKIP)</div>
+    </div>
+
+    <div class="arr"><div class="arr-line c2" style="height:22px"></div><div class="arr-head ah-c2"></div></div>
+
+    <!-- ③ RETRIAGE TARGET -->
+    <div class="node node-full n-ret" style="animation-delay:0.15s">
+      <div class="nl">State Update</div>
+      <div class="nt">retriage_target</div>
+      <div class="nd">재평가 대상 stage 확정 → 해당 재평가 노드로 라우팅</div>
+    </div>
+
+    <!-- fan-out → S2 / S3 / S4 retriage nodes (width matches branch-row 660px) -->
+    <div style="width:100%;max-width:660px;margin:0 auto">
+      <svg width="100%" height="32" viewBox="0 0 660 32" preserveAspectRatio="none" style="display:block">
+        <line x1="330" y1="0" x2="103" y2="28" stroke="rgba(124,58,237,0.45)" stroke-width="1.5"/>
+        <line x1="330" y1="0" x2="330" y2="28" stroke="rgba(124,58,237,0.45)" stroke-width="1.5"/>
+        <line x1="330" y1="0" x2="557" y2="28" stroke="rgba(124,58,237,0.45)" stroke-width="1.5"/>
+        <polygon points="103,28 98,20 108,20" fill="rgba(124,58,237,0.6)"/>
+        <polygon points="330,28 325,20 335,20" fill="rgba(124,58,237,0.6)"/>
+        <polygon points="557,28 552,20 562,20" fill="rgba(124,58,237,0.6)"/>
+      </svg>
+    </div>
+
+    <!-- ④ RETRIAGE BRANCH NODES -->
+    <div class="branch-row">
+      <div class="branch-node" style="animation-delay:0.2s">
+        <div class="bn-label">Stage 2 재평가</div>
+        <div class="bn-title">retriage_s2</div>
+        <div class="bn-desc">주증상 계통<br>재평가 판단</div>
+      </div>
+      <div class="branch-node" style="animation-delay:0.23s">
+        <div class="bn-label">Stage 3 재평가</div>
+        <div class="bn-title">retriage_s3</div>
+        <div class="bn-desc">세부 증상<br>재평가 판단</div>
+      </div>
+      <div class="branch-node" style="animation-delay:0.26s">
+        <div class="bn-label">Stage 4 재평가</div>
+        <div class="bn-title">retriage_s4</div>
+        <div class="bn-desc">구체 임상상태<br>재평가 판단</div>
+      </div>
+    </div>
+
+    <!-- fan-in → decision (center of 660px = 330) -->
+    <div style="width:100%;max-width:660px;margin:0 auto">
+      <svg width="100%" height="30" viewBox="0 0 660 30" preserveAspectRatio="none" style="display:block">
+        <line x1="103" y1="0" x2="330" y2="26" stroke="rgba(251,191,36,0.35)" stroke-width="1.5"/>
+        <line x1="330" y1="0" x2="330" y2="26" stroke="rgba(251,191,36,0.35)" stroke-width="1.5"/>
+        <line x1="557" y1="0" x2="330" y2="26" stroke="rgba(251,191,36,0.35)" stroke-width="1.5"/>
+        <polygon points="330,26 325,18 335,18" fill="rgba(251,191,36,0.55)"/>
+      </svg>
+    </div>
+
+    <!-- ⑤ DECISION BOX -->
+    <div style="display:flex;justify-content:center;width:100%">
+      <div class="decision-box" style="animation-delay:0.3s">추가질문 필요?</div>
+    </div>
+
+    <!--
+      LAYOUT PLAN for split section (total width 760px, centered):
+        - ask_question col:  0 – 200px  (center = 100)
+        - gap:             200 – 240px
+        - cascade col:     240 – 760px  (width 520px, center = 500)
+        - page center (decision box center) = 380
+
+      YES branch:  380 → 100  (left, dashed yellow)
+      NO branch:   380 → 500  (right, green)
+
+      The SVG below is 760px wide. We place it over the split section.
+    -->
+
+    <!-- Branch SVG with YES/NO path labels -->
+    <div style="width:100%;max-width:760px;margin:0 auto;position:relative">
+      <svg width="100%" height="56" viewBox="0 0 760 56" preserveAspectRatio="none" style="display:block">
+        <!-- YES: center(380) → ask center(100) -->
+        <line x1="380" y1="0" x2="100" y2="50" stroke="rgba(251,191,36,0.45)" stroke-width="1.5" stroke-dasharray="5,3"/>
+        <polygon points="100,50 95,42 105,42" fill="rgba(251,191,36,0.6)"/>
+        <!-- NO: center(380) → cascade center(500) -->
+        <line x1="380" y1="0" x2="500" y2="50" stroke="rgba(16,185,129,0.45)" stroke-width="1.5"/>
+        <polygon points="500,50 495,42 505,42" fill="rgba(16,185,129,0.6)"/>
+        <!-- YES label -->
+        <text x="190" y="16" font-family="JetBrains Mono,monospace" font-size="10" fill="rgba(251,191,36,0.9)" text-anchor="middle">YES → 추가질문</text>
+        <!-- NO label -->
+        <text x="570" y="16" font-family="JetBrains Mono,monospace" font-size="10" fill="rgba(16,185,129,0.9)" text-anchor="middle">NO → 재분류</text>
+      </svg>
+    </div>
+
+    <!-- ⑥ SPLIT: ask_question  |  gap  |  Classifier Cascade -->
+    <!--
+      Grid layout:
+        col 0: 200px  → ask_question (centered within this col = 100px from left)
+        col 1: 40px   → gap
+        col 2: 1fr    → cascade
+    -->
+    <div style="width:100%;max-width:760px;display:grid;grid-template-columns:200px 40px 1fr;align-items:start">
+
+      <!-- ask_question -->
+      <div style="display:flex;flex-direction:column;align-items:center">
+        <div class="node n-ask" style="width:100%;animation-delay:0.37s">
+          <div class="nl">Side Path</div>
+          <div class="nt">ask_question</div>
+          <div class="nd">추가 질문 포맷 생성<br>→ <strong style="color:#fbbf24">END</strong></div>
+        </div>
+      </div>
+
+      <!-- gap -->
+      <div></div>
+
+      <!-- Classifier Cascade -->
+      <div style="display:flex;flex-direction:column;align-items:stretch">
+        <div class="slabel">Classifier Cascade</div>
+
+        <!-- S2 -->
+        <div class="cascade-node cn-s2" style="animation-delay:0.38s">
+          <div class="cascade-num cnum-s2">S2</div>
+          <div>
+            <div class="ci-title ct-s2">stage2_classifier</div>
+            <div class="ci-example">주증상 계통 18개 중 선택 · 예: 심혈관계, 호흡기계</div>
+          </div>
+        </div>
+
+        <div class="arr"><div class="arr-line c1" style="height:12px"></div><div class="arr-head ah-c1"></div></div>
+
+        <!-- S3 -->
+        <div class="cascade-node cn-s3" style="animation-delay:0.42s">
+          <div class="cascade-num cnum-s3">S3</div>
+          <div>
+            <div class="ci-title ct-s3">stage3_classifier</div>
+            <div class="ci-example">세부 증상 · 예: 가슴통증(심장성), 호흡곤란</div>
+          </div>
+        </div>
+
+        <div class="arr"><div class="arr-line c4" style="height:12px"></div><div class="arr-head ah-c4"></div></div>
+
+        <!-- S4 -->
+        <div class="cascade-node cn-s4" style="animation-delay:0.46s">
+          <div class="cascade-num cnum-s4">S4</div>
+          <div>
+            <div class="ci-title ct-s4">stage4_classifier</div>
+            <div class="ci-example">구체 임상상태 · 예: NSTEMI/불안정 협심증 의심</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Arrow: cascade center → output center (bring line from 500 → 380 then down) -->
+    <div style="width:100%;max-width:760px;margin:0 auto">
+      <svg width="100%" height="36" viewBox="0 0 760 36" preserveAspectRatio="none" style="display:block">
+        <!-- down from cascade center (500) -->
+        <line x1="500" y1="0"  x2="500" y2="18" stroke="rgba(16,185,129,0.4)" stroke-width="1.5"/>
+        <!-- horizontal to page center (380) -->
+        <line x1="500" y1="18" x2="380" y2="18" stroke="rgba(16,185,129,0.4)" stroke-width="1.5"/>
+        <!-- down to output -->
+        <line x1="380" y1="18" x2="380" y2="32" stroke="rgba(16,185,129,0.4)" stroke-width="1.5"/>
+        <polygon points="380,32 375,24 385,24" fill="rgba(16,185,129,0.55)"/>
+      </svg>
+    </div>
+
+    <!-- ⑦ OUTPUT -->
+    <div class="node node-full n-out" style="animation-delay:0.5s">
+      <div class="nl">Response</div>
+      <div class="nt">분류 결과 반환</div>
+      <div class="nd">
+        stage2~4 selection · confidence · reason ·
+        <strong style="color:#7dd3fc">evidence_spans</strong>: 환자 진술 quote + 임상 해석 → <strong style="color:var(--accent1)">END</strong>
+      </div>
+    </div>
+
+  </div><!-- /.flow -->
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(0,212,255,0.7)"></div>Input / Output</div>
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(255,107,53,0.7)"></div>Routing / Judge</div>
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(124,58,237,0.7)"></div>Retriage Nodes</div>
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(16,185,129,0.7)"></div>Classifier Cascade</div>
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(251,191,36,0.7)"></div>Ask Question Path</div>
+  </div>
+
+</div><!-- /.wrapper -->
+</body>
+</html>
