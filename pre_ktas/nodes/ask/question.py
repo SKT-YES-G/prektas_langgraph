@@ -26,10 +26,10 @@ def ask_question_node(state: GraphState) -> dict:
     formatted = _format_questions(questions)
     ai_message = AIMessage(content=formatted)
 
-    # additional_questions 초기화 (다음 사이클에 중복 방지)
+    # additional_questions 는 유지 → API 응답에서 클라이언트가 확인 가능
+    # 다음 사이클에서 새 입력이 들어오면 retriage 노드가 덮어쓴다
     return {
         "messages": [ai_message],
-        "additional_questions": [],
     }
 
 

@@ -26,7 +26,7 @@ class RetraigeStage4Decision(BaseModel):
     )
     questions: list[str] = Field(
         default_factory=list,
-        description="action='추가 질문'일 때 질문 목록 (최대 3개). "
+        description="action='추가 질문'일 때 질문 목록 (1~3개, 반드시 1개 이상). "
                     "action='재분류'이면 빈 리스트.",
     )
     reason: str = Field(description="결정 근거 (1-2 문장)")
@@ -49,7 +49,7 @@ Stage 2, Stage 3 분류는 확정되었고, Stage 4(구체적인 임상 상태)�
 
 새로운 정보를 바탕으로 아래 중 하나를 결정하세요:
 1) '추가 질문': Stage 4 구체 상태를 결정하기에 정보가 충분하지 않아, \
-질문이 필요합니다. 최대 3개의 구체적인 임상 질문을 생성하세요.
+질문이 필요합니다. **반드시 questions에 1~3개의 구체적인 임상 질문을 포함하세요. 빈 리스트는 허용되지 않습니다.**
 2) '재분류': 정보가 충분하여 Stage 4 후보군 중에서 바로 분류할 수 있습니다.
 """
 
@@ -88,9 +88,13 @@ def make_retriage_stage4_node(llm):
             "stage4_candidates": candidates,
         }
 
-        if decision.action == "추가 질문" and decision.questions:
+        if decision.action == "추가 질문":
+            questions = decision.questions or [
+                "현재 활력징후(혈압, 맥박, 체온, SpO2)를 알려주세요.",
+                "증상의 중증도가 어느 정도인지 설명해 주세요.",
+            ]
             existing = state.get("additional_questions") or []
-            update["additional_questions"] = existing + decision.questions
+            update["additional_questions"] = existing + questions
 
         return update
 
