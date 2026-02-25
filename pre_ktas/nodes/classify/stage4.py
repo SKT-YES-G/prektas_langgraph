@@ -28,13 +28,20 @@ class EvidenceSpan(BaseModel):
 
 class Stage4Classification(BaseModel):
     selection: str = Field(
-        description="stage4_candidates 목록 중 가장 적합한 구체 상태 항목 1개 (목록에 있는 문자열 그대로)."
+        description="stage4_candidates 목록 중 가장 적합한 구체 상태 항목 1개 (목록에 있는 문자열 그대로). "
+                    "confidence='낮음'이면 빈 문자열 가능.",
     )
     confidence: str = Field(description="확신 수준: '높음' | '중간' | '낮음'")
-    evidence_spans: list[EvidenceSpan] = Field(
-        description="선택 근거가 되는 환자 진술·활력징후 발췌 목록. 1~3개 추출."
+    questions: list[str] = Field(
+        default_factory=list,
+        description="confidence='낮음'일 때, 분류에 필요하지만 환자 진술에서 확인할 수 없었던 "
+                    "임상 정보를 묻는 질문 1~3개. confidence='높음'|'중간'이면 빈 리스트.",
     )
-    reason: str = Field(description="선택 종합 근거 (1-2 문장)")
+    evidence_spans: list[EvidenceSpan] = Field(
+        default_factory=list,
+        description="선택 근거가 되는 환자 진술·활력징후 발췌 목록. 1~3개 추출.",
+    )
+    reason: str = Field(default="", description="선택 종합 근거 (1-2 문장)")
 
 
 _SYSTEM_PROMPT = """\
@@ -73,9 +80,12 @@ _SYSTEM_PROMPT = """\
 │ 패혈증/SIRS      │ SIRS 기준 충족 개수 (2개 vs 3개 이상)     │
 └─────────────────┴───────────────────────────────────────────┘
 
-환자 진술에 해당 수치가 명시되지 않았으면, 진술의 표현 강도와 맥락으로 추정하세요.
+환자 진술에 해당 수치가 없고 표현만으로도 판단이 어려우면:
+- confidence를 '낮음'으로 설정하고
+- questions에 부족한 임상 정보를 묻는 질문을 1~3개 포함하세요.
+- 추정으로 분류하지 마세요. 잘못된 분류보다 재질문이 낫습니다.
 
-evidence_spans에는 위 판단에 사용한 수치·표현을 원문 그대로 발췌하세요.
+confidence가 '높음' 또는 '중간'이면 evidence_spans에 판단에 사용한 수치·표현을 원문 그대로 발췌하세요.
 예시) 진술: "어제부터 두통이 너무 심해서 참을 수가 없어요"
   → quote: "참을 수가 없어요",  interpretation: "NRS 8-10 수준의 극심한 통증"
   → quote: "어제부터",          interpretation: "급성 발생 (수일 이내)"
@@ -115,6 +125,16 @@ def make_stage4_classifier_node(llm):
 
         result: Stage4Classification = structured_llm.invoke(messages)
 
+        # ── confidence '낮음' + 질문이 있으면 → 분류하지 않고 재질문 ──
+        if result.confidence == "낮음" and result.questions:
+            existing_q = state.get("additional_questions") or []
+            return {
+                "retriage_action": "추가 질문",
+                "additional_questions": existing_q + result.questions,
+                "current_stage": 4,
+            }
+
+        # ── 분류 확정 ──
         selection = result.selection if result.selection in candidates else candidates[0]
 
         log_entry = {
